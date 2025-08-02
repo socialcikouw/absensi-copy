@@ -1,0 +1,140 @@
+import { StyleSheet } from "react-native";
+
+export const settingsStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+  },
+  header: {
+    backgroundColor: "#fff",
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+  },
+  scrollContainer: {
+    flex: 1,
+    paddingVertical: 20,
+  },
+  section: {
+    backgroundColor: "#fff",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#666",
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 5,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  lastMenuItem: {
+    borderBottomWidth: 0,
+  },
+  menuIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuIconText: {
+    fontSize: 18,
+  },
+  menuContent: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333",
+    marginBottom: 2,
+  },
+  menuSubtitle: {
+    fontSize: 13,
+    color: "#666",
+  },
+  menuArrow: {
+    fontSize: 16,
+    color: "#ccc",
+  },
+  profileSection: {
+    backgroundColor: "#fff",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  profileInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#007AFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 15,
+  },
+  avatarText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  profileDetails: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 2,
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: "#666",
+  },
+  logoutButton: {
+    backgroundColor: "#FF3B30",
+    marginHorizontal: 20,
+    marginVertical: 20,
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  logoutButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+});
