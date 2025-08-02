@@ -1,46 +1,52 @@
+import { DropLamaHarianFormData, ValidationResult } from "../types";
+import { parseRibuan } from "./formatRibuan";
 import {
-  DropLamaHarianFormData,
-  ValidationResult,
-} from "../types/droplamaharian";
-import { parseCurrency } from "./dropBaruHarianCalculations";
+  validateNonNegative,
+  validateRequiredWithMinLength,
+} from "./validation";
 
 export const validateDropLamaHarianForm = (
   formData: DropLamaHarianFormData
 ): ValidationResult => {
   // Check nama
-  if (!formData.nama.trim()) {
-    return { isValid: false, message: "Nama harus diisi" };
-  }
-
-  if (formData.nama.trim().length < 3) {
-    return { isValid: false, message: "Nama minimal 3 karakter" };
+  const namaValidation = validateRequiredWithMinLength(
+    formData.nama,
+    3,
+    "Nama"
+  );
+  if (!namaValidation.isValid) {
+    return namaValidation;
   }
 
   // Check alamat
-  if (!formData.alamat.trim()) {
-    return { isValid: false, message: "Alamat harus diisi" };
-  }
-
-  if (formData.alamat.trim().length < 3) {
-    return { isValid: false, message: "Alamat minimal 3 karakter" };
+  const alamatValidation = validateRequiredWithMinLength(
+    formData.alamat,
+    3,
+    "Alamat"
+  );
+  if (!alamatValidation.isValid) {
+    return alamatValidation;
   }
 
   // Check saldo
-  const saldoNumber = parseCurrency(formData.saldo);
-  if (saldoNumber < 0) {
-    return { isValid: false, message: "Saldo tidak boleh negatif" };
+  const saldoNumber = parseRibuan(formData.saldo);
+  const saldoValidation = validateNonNegative(saldoNumber, "Saldo");
+  if (!saldoValidation.isValid) {
+    return saldoValidation;
   }
 
   // Check angsuran
-  const angsuranNumber = parseCurrency(formData.angsuran);
-  if (angsuranNumber < 0) {
-    return { isValid: false, message: "Angsuran tidak boleh negatif" };
+  const angsuranNumber = parseRibuan(formData.angsuran);
+  const angsuranValidation = validateNonNegative(angsuranNumber, "Angsuran");
+  if (!angsuranValidation.isValid) {
+    return angsuranValidation;
   }
 
   // Check tabungan
-  const tabunganNumber = parseCurrency(formData.tabungan);
-  if (tabunganNumber < 0) {
-    return { isValid: false, message: "Tabungan tidak boleh negatif" };
+  const tabunganNumber = parseRibuan(formData.tabungan);
+  const tabunganValidation = validateNonNegative(tabunganNumber, "Tabungan");
+  if (!tabunganValidation.isValid) {
+    return tabunganValidation;
   }
 
   return { isValid: true };

@@ -2,5 +2,6 @@
 // NASABAH COMPONENTS - Index Export
 // ========================================
 
-export { DataNasabahHeader } from "./DataNasabahHeader";
-export { DataNasabahList } from "./DataNasabahList";
+export { CustomerCard } from "./CustomerCard";
+export { CustomerList } from "./CustomerList";
+export { CustomerListHeader } from "./CustomerListHeader";

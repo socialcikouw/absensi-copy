@@ -1,11 +1,34 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { AuthScreen } from "../components/auth/AuthScreen";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
+import { initDatabase } from "../lib/database";
+import { queryClient } from "../lib/queryClient";
+import { syncService } from "../services/sync/SyncService";
 
 function AppContent() {
   const { session, loading } = useAuth();
+
+  // Initialize database and sync service
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Initialize local database
+        await initDatabase();
+
+        // Initialize sync service
+        await syncService.initialize();
+
+        console.log("App initialized successfully");
+      } catch (error) {
+        console.error("Failed to initialize app:", error);
+      }
+    };
+
+    initializeApp();
+  }, []);
 
   if (loading) {
     return (
@@ -29,9 +52,11 @@ function AppContent() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

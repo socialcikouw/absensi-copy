@@ -1,4 +1,5 @@
 import { Session, User } from "@supabase/supabase-js";
+import { ValidationResult } from "./common";
 
 export interface AuthContextType {
   session: Session | null;
@@ -33,7 +34,5 @@ export interface AuthFormData {
   confirmPassword?: string;
 }
 
-export interface ValidationResult {
-  isValid: boolean;
-  message?: string;
-}
+// Re-export ValidationResult from common for backward compatibility
+export { ValidationResult };

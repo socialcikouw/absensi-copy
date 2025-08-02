@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Alert } from "react-native";
-import { dropBaruHarianService } from "../../services/dropbaru/dropBaruHarianService";
-import { storageService } from "../../services/storage/storageService";
+import { dropBaruHarianHybridService } from "../../services/dropbaru/DropBaruHarianHybridService";
 import {
   calculateDropBaruHarianValues,
-  parseCurrency,
-} from "../../utils/dropBaruHarianCalculations";
-import { validateDropBaruHarianForm } from "../../utils/dropBaruHarianValidation";
+  validateDropBaruHarianForm,
+} from "../../utils";
+import { parseRibuan } from "../../utils/formatRibuan";
 
 interface DropBaruHarianFormData {
   foto?: string;
@@ -15,195 +14,106 @@ interface DropBaruHarianFormData {
   pinjaman: string;
 }
 
-interface DropBaruHarianCalculations {
-  angsuran: number;
-  tabungan: number;
-  saldo: number;
+interface UseDropBaruHarianFormReturn {
+  formData: DropBaruHarianFormData;
+  isLoading: boolean;
+  isSubmitting: boolean;
+  error: string | null;
+  setFormData: React.Dispatch<React.SetStateAction<DropBaruHarianFormData>>;
+  handleInputChange: (
+    field: keyof DropBaruHarianFormData,
+    value: string
+  ) => void;
+  handleSubmit: () => Promise<void>;
+  resetForm: () => void;
 }
 
-const initialFormData: DropBaruHarianFormData = {
-  foto: undefined,
-  nama: "",
-  alamat: "",
-  pinjaman: "",
-};
+export const useDropBaruHarianForm = (): UseDropBaruHarianFormReturn => {
+  const [formData, setFormData] = useState<DropBaruHarianFormData>({
+    nama: "",
+    alamat: "",
+    pinjaman: "",
+  });
 
-const initialCalculations: DropBaruHarianCalculations = {
-  angsuran: 0,
-  tabungan: 0,
-  saldo: 0,
-};
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-export const useDropBaruHarianForm = () => {
-  const [formData, setFormData] =
-    useState<DropBaruHarianFormData>(initialFormData);
-  const [calculations, setCalculations] =
-    useState<DropBaruHarianCalculations>(initialCalculations);
-  const [loading, setLoading] = useState(false);
-
-  const updateField = (field: keyof DropBaruHarianFormData, value: string) => {
+  const handleInputChange = (
+    field: keyof DropBaruHarianFormData,
+    value: string
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
-
-    // Auto-calculate when pinjaman changes
-    if (field === "pinjaman" && value) {
-      const pinjamanNumber = parseCurrency(value);
-      if (pinjamanNumber > 0) {
-        const newCalculations = calculateDropBaruHarianValues(pinjamanNumber);
-        setCalculations(newCalculations);
-      } else {
-        setCalculations(initialCalculations);
-      }
-    }
+    setError(null); // Clear error when user starts typing
   };
 
-  const updatePhoto = (photoUri: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      foto: photoUri,
-    }));
-  };
-
-  const formatCurrencyInput = (value: string): string => {
-    // Remove non-numeric characters
-    const numericValue = value.replace(/[^0-9]/g, "");
-
-    // Format with thousand separators
-    if (numericValue) {
-      return new Intl.NumberFormat("id-ID").format(parseInt(numericValue));
-    }
-
-    return "";
-  };
-
-  const handleLoanAmountChange = (value: string) => {
-    const formatted = formatCurrencyInput(value);
-    updateField("pinjaman", formatted);
-  };
-
-  const validateForm = (): boolean => {
-    const validation = validateDropBaruHarianForm(formData);
-    return validation.isValid;
-  };
-
-  const handleSubmit = async (): Promise<boolean> => {
-    if (!validateForm()) {
-      console.log("Form validation failed");
-      return false;
-    }
-
-    setLoading(true);
+  const handleSubmit = async () => {
     try {
-      let photoUrl = formData.foto;
+      setIsSubmitting(true);
+      setError(null);
 
-      // Upload photo if exists
-      if (formData.foto && formData.foto.startsWith("file://")) {
-        console.log("Uploading photo to dropbaru-photos bucket...");
-
-        // Additional validation sebelum upload
-        console.log("Photo URI to upload:", formData.foto);
-
-        const fileName = `drop-baru-harian-${Date.now()}.jpg`;
-        const uploadResult = await storageService.uploadDropBaruPhoto(
-          formData.foto,
-          fileName
-        );
-
-        if (uploadResult.error) {
-          console.error("Photo upload failed:", uploadResult.error);
-          Alert.alert(
-            "Error Upload Foto",
-            uploadResult.error || "Gagal mengupload foto. Silakan coba lagi."
-          );
-          return false;
-        }
-
-        photoUrl = uploadResult.data?.publicUrl;
-        console.log(
-          "Photo uploaded successfully to dropbaru-photos:",
-          photoUrl
-        );
-
-        // Test apakah URL foto bisa diakses
-        if (photoUrl) {
-          try {
-            const urlTest = await storageService.testPhotoUrl(photoUrl);
-            if (!urlTest.accessible) {
-              console.warn(
-                "WARNING: Photo URL may not be accessible:",
-                urlTest.error
-              );
-              // Tetap lanjutkan karena mungkin perlu waktu untuk policy terapply
-            }
-          } catch (testError) {
-            console.warn("Could not test photo URL accessibility:", testError);
-            // Tidak perlu stop proses karena ini hanya test
-          }
-        }
+      // Validate form data
+      const validation = validateDropBaruHarianForm(formData);
+      if (!validation.isValid) {
+        setError(validation.message || "Data tidak valid");
+        return;
       }
 
-      // Prepare data for submission
-      const submitData = {
-        foto: photoUrl,
+      // Parse pinjaman to number (menggunakan parseRibuan untuk handle format ribuan)
+      const pinjamanNumber = parseRibuan(formData.pinjaman);
+
+      // Calculate other values
+      const calculations = calculateDropBaruHarianValues(pinjamanNumber);
+
+      // Prepare data for service
+      const serviceData = {
+        foto: formData.foto,
         nama: formData.nama.trim(),
         alamat: formData.alamat.trim(),
-        pinjaman: parseCurrency(formData.pinjaman),
+        pinjaman: pinjamanNumber,
       };
 
-      console.log("Submitting drop baru harian:", submitData);
+      // Submit to service
+      const response = await dropBaruHarianHybridService.create(serviceData);
 
-      const { data, error } = await dropBaruHarianService.createDropBaruHarian(
-        submitData
-      );
-
-      if (error) {
-        console.error("Error creating drop baru harian:", error);
-
-        // Clean up uploaded photo if main operation failed
-        if (photoUrl && photoUrl !== formData.foto) {
-          try {
-            await storageService.deleteDropBaruPhoto(photoUrl);
-          } catch (cleanupError) {
-            console.error("Error cleaning up photo:", cleanupError);
-          }
-        }
-
-        return false;
+      if (response.success) {
+        Alert.alert("Sukses", "Data drop baru harian berhasil ditambahkan", [
+          {
+            text: "OK",
+            onPress: () => resetForm(),
+          },
+        ]);
+      } else {
+        setError(response.error || "Gagal menambahkan data");
       }
-
-      console.log("Drop baru harian created successfully:", data);
-
-      // Reset form on success
-      resetForm();
-      return true;
-    } catch (error) {
-      console.error("Unexpected error during submission:", error);
-      return false;
+    } catch (err) {
+      console.error("Error submitting form:", err);
+      setError("Terjadi kesalahan saat menambahkan data");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const resetForm = () => {
-    setFormData(initialFormData);
-    setCalculations(initialCalculations);
-  };
-
-  const isFormValid = () => {
-    return validateForm();
+    setFormData({
+      nama: "",
+      alamat: "",
+      pinjaman: "",
+    });
+    setError(null);
   };
 
   return {
     formData,
-    calculations,
-    loading,
-    updateField,
-    updatePhoto,
-    handleLoanAmountChange,
+    isLoading,
+    isSubmitting,
+    error,
+    setFormData,
+    handleInputChange,
     handleSubmit,
     resetForm,
-    isFormValid,
   };
 };

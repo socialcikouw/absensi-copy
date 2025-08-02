@@ -83,7 +83,7 @@ export const useSettingsLogic = () => {
   };
 
   const handleNasabahList = () => {
-    router.push("/DataNasabah");
+    router.push("/CustomerListScreen");
   };
 
   return {

@@ -13,20 +13,6 @@ interface DropOption {
 
 const dropOptions: DropOption[] = [
   {
-    id: "mingguan",
-    title: "MINGGUAN",
-    description: "Isi data nasabah baru dengan tenor 10 minggu",
-    route: "/dropbarumingguan-form",
-    icon: "M",
-  },
-  {
-    id: "tempoan",
-    title: "TEMPOAN",
-    description: "Isi data nasabah baru dengan tenor 10 hari",
-    route: "/droptempoan-form",
-    icon: "T",
-  },
-  {
     id: "drop-lama",
     title: "DROP LAMA",
     description: "Isi data nasabah lama dengan tenor 24 hari",
@@ -44,7 +30,11 @@ const dropOptions: DropOption[] = [
 
 export default function DropSelectionScreen() {
   const handleOptionPress = (route: string) => {
-    router.push(route as any);
+    try {
+      router.push(route as any);
+    } catch (error) {
+      console.error("Navigation error:", error);
+    }
   };
 
   const renderDropCard = (option: DropOption) => (
@@ -52,6 +42,7 @@ export default function DropSelectionScreen() {
       key={option.id}
       onPress={() => handleOptionPress(option.route)}
       style={styles.card}
+      activeOpacity={0.7}
     >
       <View style={styles.headerCard}>
         <View style={styles.iconContainer}>
@@ -73,13 +64,8 @@ export default function DropSelectionScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Ketuk salah satu untuk memulai</Text>
-      {/* <View style={styles.cardContainer}>
-        {renderDropCard(dropOptions[0])}
-        {renderDropCard(dropOptions[1])}
-      </View> */}
       <View style={styles.cardContainer}>
-        {renderDropCard(dropOptions[2])}
-        {renderDropCard(dropOptions[3])}
+        {dropOptions.map(renderDropCard)}
       </View>
     </View>
   );

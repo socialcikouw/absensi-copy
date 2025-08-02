@@ -1,97 +1,76 @@
-import { useState } from "react";
-import { CombinedData, FilterType } from "../../types/dashboard";
-import { useDropBaruHarianList } from "../dropbaru/useDropBaruHarianList";
-import { useDropLamaHarianList } from "../droplama/useDropLamaHarianList";
+import { useCallback, useMemo } from "react";
+import { DashboardDataItem } from "./useDashboardData";
 
 /**
- * Hook untuk mengelola business logic dashboard
+ * Hook untuk dashboard business logic dan computed values
+ * Separation of concern untuk logic yang kompleks
  */
-export function useDashboardLogic() {
-  const [filter, setFilter] = useState<FilterType>("all");
+export const useDashboardLogic = (data: DashboardDataItem[]) => {
+  // Memoized data calculations untuk header
+  const { dropBaruHarianList, dropLamaHarianList } = useMemo(() => {
+    const baruList = data.filter((item) => item.type === "baru");
+    const lamaList = data.filter((item) => item.type === "lama");
+    return { dropBaruHarianList: baruList, dropLamaHarianList: lamaList };
+  }, [data]);
 
-  // Data hooks
-  const {
-    dropLamaHarianList,
-    loading: loadingLama,
-    error: errorLama,
-    refreshList: refreshLama,
-    deleteDropLamaHarian,
-  } = useDropLamaHarianList();
+  // Memoized statistics
+  const statistics = useMemo(() => {
+    const totalBaru = dropBaruHarianList.length;
+    const totalLama = dropLamaHarianList.length;
+    const totalData = data.length;
 
-  const {
-    dropBaruHarianList,
-    loading: loadingBaru,
-    error: errorBaru,
-    refreshList: refreshBaru,
-    deleteDropBaruHarian,
-  } = useDropBaruHarianList();
+    // Calculate total angsuran
+    const totalAngsuranBaru = dropBaruHarianList.reduce((sum, item) => {
+      return sum + (item.data.angsuran || 0);
+    }, 0);
 
-  // Combine dan sort data
-  const combinedData: CombinedData[] = [
-    ...dropLamaHarianList.map((item) => ({
-      id: `lama-${item.id}`,
-      type: "lama" as const,
-      data: item,
-      timestamp: item.created_at || new Date().toISOString(),
-    })),
-    ...dropBaruHarianList.map((item) => ({
-      id: `baru-${item.id}`,
-      type: "baru" as const,
-      data: item,
-      timestamp: item.created_at || new Date().toISOString(),
-    })),
-  ].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+    const totalAngsuranLama = dropLamaHarianList.reduce((sum, item) => {
+      return sum + (item.data.angsuran || 0);
+    }, 0);
 
-  // Filter data berdasarkan filter yang dipilih
-  const filteredData = combinedData.filter((item) => {
-    if (filter === "all") return true;
-    return item.type === filter;
-  });
+    const totalAngsuran = totalAngsuranBaru + totalAngsuranLama;
 
-  // Computed states
-  const isLoading = loadingLama || loadingBaru;
-  const hasError = errorLama || errorBaru;
+    return {
+      totalBaru,
+      totalLama,
+      totalData,
+      totalAngsuran,
+      totalAngsuranBaru,
+      totalAngsuranLama,
+    };
+  }, [dropBaruHarianList, dropLamaHarianList, data]);
 
-  // Business logic functions
-  const handleRefresh = async () => {
-    await Promise.all([refreshLama(), refreshBaru()]);
-  };
-
-  const handleDeleteLama = async (id: string): Promise<boolean> => {
-    return await deleteDropLamaHarian(id);
-  };
-
-  const handleDeleteBaru = async (id: string): Promise<boolean> => {
-    return await deleteDropBaruHarian(id);
-  };
-
-  const handleCardPress = (item: CombinedData) => {
+  // Memoized card press handler
+  const handleCardPress = useCallback((item: DashboardDataItem) => {
     console.log("Card pressed:", item);
-  };
+    // TODO: Implementasi navigasi ke detail nasabah
+  }, []);
 
-  const handleFilterChange = (newFilter: FilterType) => {
-    setFilter(newFilter);
-  };
+  // Memoized state checks
+  const stateChecks = useMemo(() => {
+    const hasData = data.length > 0;
+    const hasBaruData = dropBaruHarianList.length > 0;
+    const hasLamaData = dropLamaHarianList.length > 0;
+
+    return {
+      hasData,
+      hasBaruData,
+      hasLamaData,
+    };
+  }, [data, dropBaruHarianList, dropLamaHarianList]);
 
   return {
-    // State
-    filter,
-    combinedData,
-    filteredData,
-    isLoading,
-    hasError,
-    dropLamaHarianList,
+    // Data
     dropBaruHarianList,
-    errorLama,
-    errorBaru,
+    dropLamaHarianList,
+
+    // Statistics
+    statistics,
+
+    // State checks
+    stateChecks,
 
     // Actions
-    handleRefresh,
-    handleDeleteLama,
-    handleDeleteBaru,
     handleCardPress,
-    handleFilterChange,
   };
-}
+};

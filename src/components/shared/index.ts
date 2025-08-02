@@ -2,8 +2,13 @@
 // SHARED COMPONENTS - Index Export
 // ========================================
 
-export { EmptyState } from "./EmptyState";
-export { ErrorState } from "./ErrorState";
+// State components (consolidated)
+export { EmptyState, ErrorState, LoadingState } from "./StateComponents";
+
+// Form components (consolidated)
+export { FormInput, PhotoInput, SaveButton } from "./FormComponents";
+
+// Individual components
 export { FilterButtons } from "./FilterButtons";
 export { ImageWithFallback } from "./ImageWithFallback";
-export { LoadingState } from "./LoadingState";
+export { NetworkStatusIndicator } from "./NetworkStatusIndicator";

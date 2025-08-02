@@ -1,29 +1,28 @@
 import React from "react";
 import {
-  ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
+import { FormInput, PhotoInput, SaveButton } from "../../components/shared";
 import { NASABAH_MESSAGES } from "../../constants/messages";
 import { useDropLamaHarianForm } from "../../hooks/droplama/useDropLamaHarianForm";
 import { useImagePicker } from "../../hooks/shared/useImagePicker";
 import { nasabahStyles } from "../../styles/nasabahStyles";
+import { handleRibuanInputChange } from "../../utils/formatRibuan";
 
 export default function CreateDropLamaHarianScreen() {
   const {
     formData,
-    loading,
-    updateField,
-    updatePhoto,
-    handleCurrencyChange,
+    isLoading,
+    isSubmitting,
+    error,
+    setFormData,
+    handleInputChange,
     handleSubmit,
-    isFormValid,
+    resetForm,
   } = useDropLamaHarianForm();
 
   // Image picker logic
@@ -32,11 +31,20 @@ export default function CreateDropLamaHarianScreen() {
   const handleImagePick = async () => {
     const result = await pickImageWithOptions();
     if (result.uri && !result.error) {
-      updatePhoto(result.uri);
+      setFormData((prev) => ({ ...prev, foto: result.uri || undefined }));
     } else if (result.error) {
       console.error("Image picker error:", result.error);
-      // You could show an alert here if needed
     }
+  };
+
+  const isFormValid = () => {
+    return (
+      formData.nama.trim() !== "" &&
+      formData.alamat.trim() !== "" &&
+      formData.saldo.trim() !== "" &&
+      formData.angsuran.trim() !== "" &&
+      formData.tabungan.trim() !== ""
+    );
   };
 
   return (
@@ -58,142 +66,112 @@ export default function CreateDropLamaHarianScreen() {
             </Text>
 
             {/* Photo Input */}
-            <View style={nasabahStyles.photoContainer}>
-              <TouchableOpacity
-                style={nasabahStyles.photoButton}
-                onPress={handleImagePick}
-                activeOpacity={0.7}
-                disabled={imageLoading}
-              >
-                {formData.foto ? (
-                  <Image
-                    source={{ uri: formData.foto }}
-                    style={nasabahStyles.photoImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <>
-                    <Text style={nasabahStyles.photoIcon}>📷</Text>
-                    <Text style={nasabahStyles.photoText}>
-                      {NASABAH_MESSAGES.PLACEHOLDERS.PHOTO}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+            <PhotoInput
+              foto={formData.foto}
+              loading={isLoading}
+              imageLoading={imageLoading}
+              onPhotoPick={handleImagePick}
+              placeholderText={NASABAH_MESSAGES.PLACEHOLDERS.PHOTO}
+            />
 
-            {/* Name Input */}
-            <View style={nasabahStyles.inputContainer}>
-              <Text style={nasabahStyles.label}>
-                {NASABAH_MESSAGES.FORM.NASABAH_NAME}{" "}
-                <Text style={nasabahStyles.requiredStar}>*</Text>
-              </Text>
-              <TextInput
-                style={nasabahStyles.input}
-                value={formData.nama}
-                onChangeText={(value) => updateField("nama", value)}
-                placeholder={NASABAH_MESSAGES.PLACEHOLDERS.NAME}
-                editable={!loading}
-              />
-            </View>
+            {/* Name Input dengan fieldType nama */}
+            <FormInput
+              label={NASABAH_MESSAGES.FORM.NASABAH_NAME}
+              value={formData.nama}
+              onChangeText={(value) => handleInputChange("nama", value)}
+              placeholder={NASABAH_MESSAGES.PLACEHOLDERS.NAME}
+              required
+              editable={!isLoading}
+              fieldType="nama"
+            />
 
-            {/* Address Input */}
-            <View style={nasabahStyles.inputContainer}>
-              <Text style={nasabahStyles.label}>
-                {NASABAH_MESSAGES.FORM.NASABAH_ADDRESS}{" "}
-                <Text style={nasabahStyles.requiredStar}>*</Text>
-              </Text>
-              <TextInput
-                style={[nasabahStyles.input, nasabahStyles.textArea]}
-                value={formData.alamat}
-                onChangeText={(value) => updateField("alamat", value)}
-                placeholder={NASABAH_MESSAGES.PLACEHOLDERS.ADDRESS}
-                multiline
-                numberOfLines={3}
-                editable={!loading}
-              />
-            </View>
+            {/* Address Input dengan fieldType alamat */}
+            <FormInput
+              label={NASABAH_MESSAGES.FORM.NASABAH_ADDRESS}
+              value={formData.alamat}
+              onChangeText={(value) => handleInputChange("alamat", value)}
+              placeholder={NASABAH_MESSAGES.PLACEHOLDERS.ADDRESS}
+              required
+              multiline
+              numberOfLines={3}
+              editable={!isLoading}
+              fieldType="alamat"
+            />
 
-            {/* Saldo Input */}
-            <View style={nasabahStyles.inputContainer}>
-              <Text style={nasabahStyles.label}>
-                {NASABAH_MESSAGES.FORM.SALDO}{" "}
-                <Text style={nasabahStyles.requiredStar}>*</Text>
-              </Text>
-              <TextInput
-                style={nasabahStyles.currencyInput}
-                value={formData.saldo}
-                onChangeText={(value) => handleCurrencyChange("saldo", value)}
-                placeholder={NASABAH_MESSAGES.PLACEHOLDERS.SALDO}
-                keyboardType="numeric"
-                editable={!loading}
-              />
-              <Text style={nasabahStyles.errorText}>
-                {formData.saldo && "Rp " + formData.saldo}
-              </Text>
-            </View>
+            {/* Saldo Input dengan Format Ribuan dan fieldType numeric */}
+            <FormInput
+              label={NASABAH_MESSAGES.FORM.SALDO}
+              value={formData.saldo}
+              onChangeText={(value) =>
+                handleRibuanInputChange(value, (formattedValue) =>
+                  handleInputChange("saldo", formattedValue)
+                )
+              }
+              placeholder={NASABAH_MESSAGES.PLACEHOLDERS.SALDO}
+              required
+              editable={!isLoading}
+              style={nasabahStyles.currencyInput}
+              fieldType="numeric"
+            />
 
-            {/* Angsuran Input */}
-            <View style={nasabahStyles.inputContainer}>
-              <Text style={nasabahStyles.label}>
-                {NASABAH_MESSAGES.FORM.ANGSURAN}{" "}
-                <Text style={nasabahStyles.requiredStar}>*</Text>
-              </Text>
-              <TextInput
-                style={nasabahStyles.currencyInput}
-                value={formData.angsuran}
-                onChangeText={(value) =>
-                  handleCurrencyChange("angsuran", value)
-                }
-                placeholder={NASABAH_MESSAGES.PLACEHOLDERS.ANGSURAN}
-                keyboardType="numeric"
-                editable={!loading}
-              />
-              <Text style={nasabahStyles.errorText}>
-                {formData.angsuran && "Rp " + formData.angsuran}
-              </Text>
-            </View>
+            {/* Angsuran Input dengan Format Ribuan dan fieldType numeric */}
+            <FormInput
+              label={NASABAH_MESSAGES.FORM.ANGSURAN}
+              value={formData.angsuran}
+              onChangeText={(value) =>
+                handleRibuanInputChange(value, (formattedValue) =>
+                  handleInputChange("angsuran", formattedValue)
+                )
+              }
+              placeholder={NASABAH_MESSAGES.PLACEHOLDERS.ANGSURAN}
+              required
+              editable={!isLoading}
+              style={nasabahStyles.currencyInput}
+              fieldType="numeric"
+            />
 
-            {/* Tabungan Input */}
-            <View style={nasabahStyles.inputContainer}>
-              <Text style={nasabahStyles.label}>
-                {NASABAH_MESSAGES.FORM.TABUNGAN}{" "}
-                <Text style={nasabahStyles.requiredStar}>*</Text>
-              </Text>
-              <TextInput
-                style={nasabahStyles.currencyInput}
-                value={formData.tabungan}
-                onChangeText={(value) =>
-                  handleCurrencyChange("tabungan", value)
-                }
-                placeholder={NASABAH_MESSAGES.PLACEHOLDERS.TABUNGAN}
-                keyboardType="numeric"
-                editable={!loading}
-              />
-              <Text style={nasabahStyles.errorText}>
-                {formData.tabungan && "Rp " + formData.tabungan}
-              </Text>
-            </View>
+            {/* Tabungan Input dengan Format Ribuan dan fieldType numeric */}
+            <FormInput
+              label={NASABAH_MESSAGES.FORM.TABUNGAN}
+              value={formData.tabungan}
+              onChangeText={(value) =>
+                handleRibuanInputChange(value, (formattedValue) =>
+                  handleInputChange("tabungan", formattedValue)
+                )
+              }
+              placeholder={NASABAH_MESSAGES.PLACEHOLDERS.TABUNGAN}
+              required
+              editable={!isLoading}
+              style={nasabahStyles.currencyInput}
+              fieldType="numeric"
+            />
           </View>
 
-          {/* Save Button */}
-          <TouchableOpacity
-            style={[
-              nasabahStyles.saveButton,
-              (!isFormValid() || loading) && nasabahStyles.saveButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={!isFormValid() || loading}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={nasabahStyles.saveButtonText}>
-                {NASABAH_MESSAGES.BUTTONS.SAVE_DROP_LAMA}
+          {/* Error Display */}
+          {error && (
+            <View style={nasabahStyles.validationContainer}>
+              <Text style={[nasabahStyles.validationText, { color: "red" }]}>
+                ❌ {error}
               </Text>
-            )}
-          </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Form validation info */}
+          {!isFormValid() && (
+            <View style={nasabahStyles.validationContainer}>
+              <Text style={nasabahStyles.validationText}>
+                ⚠️ Mohon lengkapi semua field yang wajib diisi
+              </Text>
+            </View>
+          )}
+
+          {/* Save Button */}
+          <SaveButton
+            onPress={handleSubmit}
+            disabled={!isFormValid() || isLoading || imageLoading}
+            loading={isSubmitting}
+            text={NASABAH_MESSAGES.BUTTONS.SAVE_DROP_LAMA}
+          />
         </ScrollView>
       </View>
     </KeyboardAvoidingView>

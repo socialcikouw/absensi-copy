@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Alert } from "react-native";
-import { dropLamaHarianService } from "../../services/droplama/dropLamaHarianService";
-import { storageService } from "../../services/storage/storageService";
-import { validateDropLamaHarianForm } from "../../utils/dropLamaHarianValidation";
+import { dropLamaHarianHybridService } from "../../services/droplama/DropLamaHarianHybridService";
+import { validateDropLamaHarianForm } from "../../utils";
+import { parseRibuan } from "../../utils/formatRibuan";
 
 interface DropLamaHarianFormData {
   foto?: string;
@@ -13,176 +13,111 @@ interface DropLamaHarianFormData {
   tabungan: string;
 }
 
-const initialFormData: DropLamaHarianFormData = {
-  foto: undefined,
-  nama: "",
-  alamat: "",
-  saldo: "",
-  angsuran: "",
-  tabungan: "",
-};
+interface UseDropLamaHarianFormReturn {
+  formData: DropLamaHarianFormData;
+  isLoading: boolean;
+  isSubmitting: boolean;
+  error: string | null;
+  setFormData: React.Dispatch<React.SetStateAction<DropLamaHarianFormData>>;
+  handleInputChange: (
+    field: keyof DropLamaHarianFormData,
+    value: string
+  ) => void;
+  handleSubmit: () => Promise<void>;
+  resetForm: () => void;
+}
 
-export const useDropLamaHarianForm = () => {
-  const [formData, setFormData] =
-    useState<DropLamaHarianFormData>(initialFormData);
-  const [loading, setLoading] = useState(false);
+export const useDropLamaHarianForm = (): UseDropLamaHarianFormReturn => {
+  const [formData, setFormData] = useState<DropLamaHarianFormData>({
+    nama: "",
+    alamat: "",
+    saldo: "",
+    angsuran: "",
+    tabungan: "",
+  });
 
-  const updateField = (field: keyof DropLamaHarianFormData, value: string) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleInputChange = (
+    field: keyof DropLamaHarianFormData,
+    value: string
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
+    setError(null); // Clear error when user starts typing
   };
 
-  const updatePhoto = (photoUri: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      foto: photoUri,
-    }));
-  };
-
-  const formatCurrencyInput = (value: string): string => {
-    // Remove non-numeric characters
-    const numericValue = value.replace(/[^0-9]/g, "");
-
-    // Format with thousand separators
-    if (numericValue) {
-      return new Intl.NumberFormat("id-ID").format(parseInt(numericValue));
-    }
-
-    return "";
-  };
-
-  const handleCurrencyChange = (
-    field: "saldo" | "angsuran" | "tabungan",
-    value: string
-  ) => {
-    const formatted = formatCurrencyInput(value);
-    updateField(field, formatted);
-  };
-
-  const validateForm = (): boolean => {
-    const validation = validateDropLamaHarianForm(formData);
-    return validation.isValid;
-  };
-
-  const handleSubmit = async (): Promise<boolean> => {
-    if (!validateForm()) {
-      console.log("Form validation failed");
-      return false;
-    }
-
-    setLoading(true);
+  const handleSubmit = async () => {
     try {
-      let photoUrl = formData.foto;
+      setIsSubmitting(true);
+      setError(null);
 
-      // Upload photo if exists
-      if (formData.foto && formData.foto.startsWith("file://")) {
-        console.log("Uploading photo to droplama-photos bucket...");
-        const fileName = `drop-lama-harian-${Date.now()}.jpg`;
-        const uploadResult = await storageService.uploadDropLamaPhoto(
-          formData.foto,
-          fileName
-        );
-
-        if (uploadResult.error) {
-          console.error("Photo upload failed:", uploadResult.error);
-          Alert.alert(
-            "Error Upload Foto",
-            uploadResult.error || "Gagal mengupload foto. Silakan coba lagi."
-          );
-          return false;
-        }
-
-        photoUrl = uploadResult.data?.publicUrl;
-        console.log(
-          "Photo uploaded successfully to droplama-photos:",
-          photoUrl
-        );
-
-        // Test apakah URL foto bisa diakses
-        if (photoUrl) {
-          try {
-            const urlTest = await storageService.testPhotoUrl(photoUrl);
-            if (!urlTest.accessible) {
-              console.warn(
-                "WARNING: Photo URL may not be accessible:",
-                urlTest.error
-              );
-              // Tetap lanjutkan karena mungkin perlu waktu untuk policy terapply
-            }
-          } catch (testError) {
-            console.warn("Could not test photo URL accessibility:", testError);
-            // Tidak perlu stop proses karena ini hanya test
-          }
-        }
+      // Validate form data
+      const validation = validateDropLamaHarianForm(formData);
+      if (!validation.isValid) {
+        setError(validation.message || "Data tidak valid");
+        return;
       }
 
-      // Parse currency values
-      const parseCurrency = (value: string): number => {
-        return parseInt(value.replace(/[^\d]/g, "")) || 0;
-      };
+      // Parse numeric values (menggunakan parseRibuan untuk handle format ribuan)
+      const saldoNumber = parseRibuan(formData.saldo);
+      const angsuranNumber = parseRibuan(formData.angsuran);
+      const tabunganNumber = parseRibuan(formData.tabungan);
 
-      // Prepare data for submission
-      const submitData = {
-        foto: photoUrl,
+      // Prepare data for service
+      const serviceData = {
+        foto: formData.foto,
         nama: formData.nama.trim(),
         alamat: formData.alamat.trim(),
-        saldo: parseCurrency(formData.saldo),
-        angsuran: parseCurrency(formData.angsuran),
-        tabungan: parseCurrency(formData.tabungan),
+        saldo: saldoNumber,
+        angsuran: angsuranNumber,
+        tabungan: tabunganNumber,
       };
 
-      console.log("Submitting drop lama harian:", submitData);
+      // Submit to service
+      const response = await dropLamaHarianHybridService.create(serviceData);
 
-      const { data, error } = await dropLamaHarianService.createDropLamaHarian(
-        submitData
-      );
-
-      if (error) {
-        console.error("Error creating drop lama harian:", error);
-
-        // Clean up uploaded photo if main operation failed
-        if (photoUrl && photoUrl !== formData.foto) {
-          try {
-            await storageService.deleteDropLamaPhoto(photoUrl);
-          } catch (cleanupError) {
-            console.error("Error cleaning up photo:", cleanupError);
-          }
-        }
-
-        return false;
+      if (response.success) {
+        Alert.alert("Sukses", "Data drop lama harian berhasil ditambahkan", [
+          {
+            text: "OK",
+            onPress: () => resetForm(),
+          },
+        ]);
+      } else {
+        setError(response.error || "Gagal menambahkan data");
       }
-
-      console.log("Drop lama harian created successfully:", data);
-
-      // Reset form on success
-      resetForm();
-      return true;
-    } catch (error) {
-      console.error("Unexpected error during submission:", error);
-      return false;
+    } catch (err) {
+      console.error("Error submitting form:", err);
+      setError("Terjadi kesalahan saat menambahkan data");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const resetForm = () => {
-    setFormData(initialFormData);
-  };
-
-  const isFormValid = () => {
-    return validateForm();
+    setFormData({
+      nama: "",
+      alamat: "",
+      saldo: "",
+      angsuran: "",
+      tabungan: "",
+    });
+    setError(null);
   };
 
   return {
     formData,
-    loading,
-    updateField,
-    updatePhoto,
-    handleCurrencyChange,
+    isLoading,
+    isSubmitting,
+    error,
+    setFormData,
+    handleInputChange,
     handleSubmit,
     resetForm,
-    isFormValid,
   };
 };

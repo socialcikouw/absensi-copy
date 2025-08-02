@@ -2,6 +2,10 @@ import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { Alert } from "react-native";
 
+// ========================================
+// IMAGE PICKER TYPES & UTILITIES
+// ========================================
+
 interface ImagePickerResult {
   uri: string | null;
   error?: string;
@@ -14,11 +18,14 @@ interface UseImagePickerReturn {
   pickImageWithOptions: () => Promise<ImagePickerResult>;
 }
 
-export const useImagePicker = (): UseImagePickerReturn => {
-  const [loading, setLoading] = useState(false);
-
-  // Validasi permissions
-  const checkPermissions = async (): Promise<{
+/**
+ * Image picker utilities untuk menghindari duplikasi
+ */
+const imagePickerUtils = {
+  /**
+   * Validasi permissions untuk camera dan media library
+   */
+  checkPermissions: async (): Promise<{
     granted: boolean;
     error?: string;
   }> => {
@@ -51,10 +58,12 @@ export const useImagePicker = (): UseImagePickerReturn => {
         error: "Gagal memeriksa izin. Silakan restart aplikasi.",
       };
     }
-  };
+  },
 
-  // Validasi gambar yang dipilih
-  const validateImage = (
+  /**
+   * Validasi gambar yang dipilih
+   */
+  validateImage: (
     result: ImagePicker.ImagePickerResult
   ): { isValid: boolean; error?: string } => {
     if (result.canceled || !result.assets || result.assets.length === 0) {
@@ -96,7 +105,58 @@ export const useImagePicker = (): UseImagePickerReturn => {
     }
 
     return { isValid: true };
-  };
+  },
+
+  /**
+   * Common image picker options
+   */
+  getImagePickerOptions: () => ({
+    allowsEditing: true,
+    aspect: [4, 3] as [number, number],
+    quality: 0.8, // Compress untuk mengurangi ukuran file
+    exif: false, // Remove EXIF data untuk privacy
+  }),
+
+  /**
+   * Handle image picker result dengan error handling
+   */
+  handleImagePickerResult: async (
+    result: ImagePicker.ImagePickerResult,
+    source: string
+  ): Promise<ImagePickerResult> => {
+    console.log(`${source} result:`, {
+      canceled: result.canceled,
+      assetsLength: result.assets?.length,
+      firstAsset: result.assets?.[0]
+        ? {
+            uri: result.assets[0].uri,
+            width: result.assets[0].width,
+            height: result.assets[0].height,
+            fileSize: result.assets[0].fileSize,
+            type: result.assets[0].type,
+          }
+        : null,
+    });
+
+    // Validate result
+    const validation = imagePickerUtils.validateImage(result);
+    if (!validation.isValid) {
+      return { uri: null, error: validation.error };
+    }
+
+    const uri = result.assets![0].uri;
+    console.log(`✅ Gambar berhasil dipilih dari ${source}:`, uri);
+
+    return { uri };
+  },
+};
+
+// ========================================
+// IMAGE PICKER HOOK
+// ========================================
+
+export const useImagePicker = (): UseImagePickerReturn => {
+  const [loading, setLoading] = useState(false);
 
   // Fungsi untuk memilih dari galeri
   const pickImage = async (): Promise<ImagePickerResult> => {
@@ -106,7 +166,7 @@ export const useImagePicker = (): UseImagePickerReturn => {
       console.log("🖼️ Membuka galeri...");
 
       // Check permissions
-      const permissionCheck = await checkPermissions();
+      const permissionCheck = await imagePickerUtils.checkPermissions();
       if (!permissionCheck.granted) {
         return { uri: null, error: permissionCheck.error };
       }
@@ -114,36 +174,10 @@ export const useImagePicker = (): UseImagePickerReturn => {
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: "images",
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8, // Compress untuk mengurangi ukuran file
-        exif: false, // Remove EXIF data untuk privacy
+        ...imagePickerUtils.getImagePickerOptions(),
       });
 
-      console.log("Galeri result:", {
-        canceled: result.canceled,
-        assetsLength: result.assets?.length,
-        firstAsset: result.assets?.[0]
-          ? {
-              uri: result.assets[0].uri,
-              width: result.assets[0].width,
-              height: result.assets[0].height,
-              fileSize: result.assets[0].fileSize,
-              type: result.assets[0].type,
-            }
-          : null,
-      });
-
-      // Validate result
-      const validation = validateImage(result);
-      if (!validation.isValid) {
-        return { uri: null, error: validation.error };
-      }
-
-      const uri = result.assets![0].uri;
-      console.log("✅ Gambar berhasil dipilih dari galeri:", uri);
-
-      return { uri };
+      return await imagePickerUtils.handleImagePickerResult(result, "galeri");
     } catch (error) {
       console.error("Pick image error:", error);
       return {
@@ -165,43 +199,17 @@ export const useImagePicker = (): UseImagePickerReturn => {
       console.log("📷 Membuka kamera...");
 
       // Check permissions
-      const permissionCheck = await checkPermissions();
+      const permissionCheck = await imagePickerUtils.checkPermissions();
       if (!permissionCheck.granted) {
         return { uri: null, error: permissionCheck.error };
       }
 
       // Launch camera
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8, // Compress untuk mengurangi ukuran file
-        exif: false, // Remove EXIF data untuk privacy
-      });
+      const result = await ImagePicker.launchCameraAsync(
+        imagePickerUtils.getImagePickerOptions()
+      );
 
-      console.log("Kamera result:", {
-        canceled: result.canceled,
-        assetsLength: result.assets?.length,
-        firstAsset: result.assets?.[0]
-          ? {
-              uri: result.assets[0].uri,
-              width: result.assets[0].width,
-              height: result.assets[0].height,
-              fileSize: result.assets[0].fileSize,
-              type: result.assets[0].type,
-            }
-          : null,
-      });
-
-      // Validate result
-      const validation = validateImage(result);
-      if (!validation.isValid) {
-        return { uri: null, error: validation.error };
-      }
-
-      const uri = result.assets![0].uri;
-      console.log("✅ Foto berhasil diambil dengan kamera:", uri);
-
-      return { uri };
+      return await imagePickerUtils.handleImagePickerResult(result, "kamera");
     } catch (error) {
       console.error("Take photo error:", error);
       return {

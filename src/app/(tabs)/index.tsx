@@ -1,14 +1,18 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View } from "react-native";
 import { DashboardHeader, DashboardList } from "../../components/dashboard";
 import { EmptyState, ErrorState, LoadingState } from "../../components/shared";
 import { useAuth } from "../../contexts/AuthContext";
-import { useDashboardData, useDashboardFilter } from "../../hooks/dashboard";
+import {
+  useDashboardData,
+  useDashboardFilter,
+  useDashboardLogic,
+} from "../../hooks/dashboard";
 import { dashboardStyles } from "../../styles/dashboardStyles";
 
 /**
  * Halaman utama dashboard
- * Menggunakan separation of concern dengan komponen terpisah
+ * Menggunakan separation of concern dengan komponen terpisah dan optimasi performance
  */
 export default function Index() {
   // Auth context
@@ -18,8 +22,6 @@ export default function Index() {
   const {
     data,
     totalData,
-    totalBaru,
-    totalLama,
     isLoading,
     hasError,
     errorBaru,
@@ -29,12 +31,32 @@ export default function Index() {
 
   const { filter, filteredData, handleFilterChange } = useDashboardFilter(data);
 
-  // Calculate data for header
-  const dropBaruHarianList = data.filter((item) => item.type === "baru");
-  const dropLamaHarianList = data.filter((item) => item.type === "lama");
+  // Dashboard logic hook
+  const { dropBaruHarianList, dropLamaHarianList, handleCardPress } =
+    useDashboardLogic(data);
+
+  // Memoized user name - OPTIMIZED
+  const userName = useMemo(() => {
+    return user?.email?.split("@")[0] || user?.user_metadata?.full_name;
+  }, [user?.email, user?.user_metadata?.full_name]);
+
+  // Memoized loading state - OPTIMIZED
+  const showLoading = useMemo(() => {
+    return isLoading && totalData === 0;
+  }, [isLoading, totalData]);
+
+  // Memoized error state - OPTIMIZED
+  const showError = useMemo(() => {
+    return hasError && totalData === 0;
+  }, [hasError, totalData]);
+
+  // Memoized empty state - OPTIMIZED
+  const showEmpty = useMemo(() => {
+    return totalData === 0;
+  }, [totalData]);
 
   // Loading state
-  if (isLoading && totalData === 0) {
+  if (showLoading) {
     return (
       <View style={dashboardStyles.loadingContainer}>
         <LoadingState />
@@ -43,7 +65,7 @@ export default function Index() {
   }
 
   // Error state
-  if (hasError && totalData === 0) {
+  if (showError) {
     return (
       <View style={dashboardStyles.errorContainer}>
         <ErrorState
@@ -56,19 +78,13 @@ export default function Index() {
   }
 
   // Empty state
-  if (totalData === 0) {
+  if (showEmpty) {
     return (
       <View style={dashboardStyles.emptyContainer}>
         <EmptyState filter={filter} />
       </View>
     );
   }
-
-  // Handle card press (bisa ditambahkan navigasi ke detail)
-  const handleCardPress = (item: any) => {
-    console.log("Card pressed:", item);
-    // TODO: Implementasi navigasi ke detail nasabah
-  };
 
   return (
     <View style={dashboardStyles.container}>
@@ -80,9 +96,7 @@ export default function Index() {
           dropLamaHarianList={dropLamaHarianList}
           dropBaruHarianList={dropBaruHarianList}
           onFilterChange={handleFilterChange}
-          userName={
-            user?.email?.split("@")[0] || user?.user_metadata?.full_name
-          }
+          userName={userName}
         />
       </View>
 

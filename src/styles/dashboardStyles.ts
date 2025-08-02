@@ -41,7 +41,7 @@ export const dashboardStyles = StyleSheet.create({
     fontWeight: "700",
     color: "#1e293b",
     marginBottom: 4,
-    textAlign: "center",
+    textAlign: "left",
   },
 
   headerSubtitle: {

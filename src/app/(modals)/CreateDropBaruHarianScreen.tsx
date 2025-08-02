@@ -1,31 +1,29 @@
 import React from "react";
 import {
-  ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
+import { FormInput, PhotoInput, SaveButton } from "../../components/shared";
 import { NASABAH_MESSAGES } from "../../constants/messages";
 import { useDropBaruHarianForm } from "../../hooks/dropbaru/useDropBaruHarianForm";
 import { useImagePicker } from "../../hooks/shared/useImagePicker";
 import { nasabahStyles } from "../../styles/nasabahStyles";
+import { handleRibuanInputChange } from "../../utils/formatRibuan";
 
 export default function CreateDropBaruHarianScreen() {
   const {
     formData,
-    calculations,
-    loading,
-    updateField,
-    updatePhoto,
-    handleLoanAmountChange,
+    isLoading,
+    isSubmitting,
+    error,
+    setFormData,
+    handleInputChange,
     handleSubmit,
-    isFormValid,
+    resetForm,
   } = useDropBaruHarianForm();
 
   // Image picker logic
@@ -37,7 +35,7 @@ export default function CreateDropBaruHarianScreen() {
 
       if (result.uri && !result.error) {
         console.log("✅ Foto berhasil dipilih:", result.uri);
-        updatePhoto(result.uri);
+        setFormData((prev) => ({ ...prev, foto: result.uri || undefined }));
       } else if (result.error) {
         console.error("❌ Image picker error:", result.error);
         Alert.alert(
@@ -64,7 +62,7 @@ export default function CreateDropBaruHarianScreen() {
         text: "Hapus",
         style: "destructive",
         onPress: () => {
-          updatePhoto("");
+          setFormData((prev) => ({ ...prev, foto: undefined }));
           console.log("🗑️ Foto dihapus dari form");
         },
       },
@@ -73,28 +71,8 @@ export default function CreateDropBaruHarianScreen() {
 
   const handleFormSubmit = async () => {
     try {
-      const success = await handleSubmit();
-
-      if (success) {
-        Alert.alert(
-          "Berhasil",
-          "Data nasabah drop baru harian berhasil disimpan!",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                // Navigate back atau refresh list
-                console.log("✅ Form submitted successfully");
-              },
-            },
-          ]
-        );
-      } else {
-        Alert.alert(
-          "Gagal",
-          "Gagal menyimpan data nasabah. Silakan coba lagi."
-        );
-      }
+      await handleSubmit();
+      console.log("✅ Form submitted successfully");
     } catch (error) {
       console.error("❌ Form submission error:", error);
       Alert.alert(
@@ -102,6 +80,14 @@ export default function CreateDropBaruHarianScreen() {
         "Terjadi kesalahan saat menyimpan data. Silakan coba lagi."
       );
     }
+  };
+
+  const isFormValid = () => {
+    return (
+      formData.nama.trim() !== "" &&
+      formData.alamat.trim() !== "" &&
+      formData.pinjaman.trim() !== ""
+    );
   };
 
   return (
@@ -123,181 +109,64 @@ export default function CreateDropBaruHarianScreen() {
             </Text>
 
             {/* Photo Input */}
-            <View style={nasabahStyles.photoContainer}>
-              <TouchableOpacity
-                style={[
-                  nasabahStyles.photoButton,
-                  imageLoading && nasabahStyles.photoButtonDisabled,
-                ]}
-                onPress={handleImagePick}
-                activeOpacity={0.7}
-                disabled={imageLoading || loading}
-              >
-                {imageLoading ? (
-                  <View style={nasabahStyles.photoLoadingContainer}>
-                    <ActivityIndicator size="large" color="#007AFF" />
-                    <Text style={nasabahStyles.photoLoadingText}>
-                      Memilih foto...
-                    </Text>
-                  </View>
-                ) : formData.foto ? (
-                  <View style={nasabahStyles.photoPreviewContainer}>
-                    <Image
-                      source={{ uri: formData.foto }}
-                      style={nasabahStyles.photoImage}
-                      resizeMode="cover"
-                    />
-                    <TouchableOpacity
-                      style={nasabahStyles.removePhotoButton}
-                      onPress={handleRemovePhoto}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={nasabahStyles.removePhotoText}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View style={nasabahStyles.photoPlaceholderContainer}>
-                    <Text style={nasabahStyles.photoIcon}>📷</Text>
-                    <Text style={nasabahStyles.photoText}>
-                      {NASABAH_MESSAGES.PLACEHOLDERS.PHOTO}
-                    </Text>
-                    <Text style={nasabahStyles.photoSubtext}>
-                      Tap untuk memilih foto
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+            <PhotoInput
+              foto={formData.foto}
+              loading={isLoading}
+              imageLoading={imageLoading}
+              onPhotoPick={handleImagePick}
+              onPhotoRemove={handleRemovePhoto}
+              placeholderText={NASABAH_MESSAGES.PLACEHOLDERS.PHOTO}
+            />
 
-              {/* Photo validation info */}
-              {formData.foto && (
-                <Text style={nasabahStyles.photoInfoText}>
-                  ✅ Foto siap diupload
-                </Text>
-              )}
-            </View>
+            {/* Name Input dengan fieldType nama */}
+            <FormInput
+              label={NASABAH_MESSAGES.FORM.NASABAH_NAME}
+              value={formData.nama}
+              onChangeText={(value) => handleInputChange("nama", value)}
+              placeholder={NASABAH_MESSAGES.PLACEHOLDERS.NAME}
+              required
+              editable={!isLoading}
+              fieldType="nama"
+            />
 
-            {/* Name Input */}
-            <View style={nasabahStyles.inputContainer}>
-              <Text style={nasabahStyles.label}>
-                {NASABAH_MESSAGES.FORM.NASABAH_NAME}{" "}
-                <Text style={nasabahStyles.requiredStar}>*</Text>
-              </Text>
-              <TextInput
-                style={[
-                  nasabahStyles.input,
-                  loading && nasabahStyles.inputDisabled,
-                ]}
-                value={formData.nama}
-                onChangeText={(value) => updateField("nama", value)}
-                placeholder={NASABAH_MESSAGES.PLACEHOLDERS.NAME}
-                editable={!loading}
-                autoCapitalize="words"
-              />
-            </View>
+            {/* Address Input dengan fieldType alamat */}
+            <FormInput
+              label={NASABAH_MESSAGES.FORM.NASABAH_ADDRESS}
+              value={formData.alamat}
+              onChangeText={(value) => handleInputChange("alamat", value)}
+              placeholder={NASABAH_MESSAGES.PLACEHOLDERS.ADDRESS}
+              required
+              multiline
+              numberOfLines={3}
+              editable={!isLoading}
+              fieldType="alamat"
+            />
 
-            {/* Address Input */}
-            <View style={nasabahStyles.inputContainer}>
-              <Text style={nasabahStyles.label}>
-                {NASABAH_MESSAGES.FORM.NASABAH_ADDRESS}{" "}
-                <Text style={nasabahStyles.requiredStar}>*</Text>
-              </Text>
-              <TextInput
-                style={[
-                  nasabahStyles.input,
-                  nasabahStyles.textArea,
-                  loading && nasabahStyles.inputDisabled,
-                ]}
-                value={formData.alamat}
-                onChangeText={(value) => updateField("alamat", value)}
-                placeholder={NASABAH_MESSAGES.PLACEHOLDERS.ADDRESS}
-                multiline
-                numberOfLines={3}
-                editable={!loading}
-                autoCapitalize="sentences"
-              />
-            </View>
-
-            {/* Loan Amount Input */}
-            <View style={nasabahStyles.inputContainer}>
-              <Text style={nasabahStyles.label}>
-                {NASABAH_MESSAGES.FORM.LOAN_AMOUNT}{" "}
-                <Text style={nasabahStyles.requiredStar}>*</Text>
-              </Text>
-              <TextInput
-                style={[
-                  nasabahStyles.currencyInput,
-                  loading && nasabahStyles.inputDisabled,
-                ]}
-                value={formData.pinjaman}
-                onChangeText={handleLoanAmountChange}
-                placeholder={NASABAH_MESSAGES.PLACEHOLDERS.LOAN}
-                keyboardType="numeric"
-                editable={!loading}
-              />
-              {formData.pinjaman && (
-                <Text style={nasabahStyles.currencyDisplay}>
-                  Rp {formData.pinjaman}
-                </Text>
-              )}
-            </View>
-
-            {/* Calculations Display */}
-            {calculations.angsuran > 0 && (
-              <View style={nasabahStyles.calculationsContainer}>
-                <Text style={nasabahStyles.calculationsTitle}>
-                  Perhitungan Otomatis:
-                </Text>
-                <View style={nasabahStyles.calculationRow}>
-                  <Text style={nasabahStyles.calculationLabel}>Angsuran:</Text>
-                  <Text style={nasabahStyles.calculationValue}>
-                    Rp{" "}
-                    {new Intl.NumberFormat("id-ID").format(
-                      calculations.angsuran
-                    )}
-                  </Text>
-                </View>
-                <View style={nasabahStyles.calculationRow}>
-                  <Text style={nasabahStyles.calculationLabel}>Tabungan:</Text>
-                  <Text style={nasabahStyles.calculationValue}>
-                    Rp{" "}
-                    {new Intl.NumberFormat("id-ID").format(
-                      calculations.tabungan
-                    )}
-                  </Text>
-                </View>
-                <View style={nasabahStyles.calculationRow}>
-                  <Text style={nasabahStyles.calculationLabel}>Saldo:</Text>
-                  <Text style={nasabahStyles.calculationValue}>
-                    Rp{" "}
-                    {new Intl.NumberFormat("id-ID").format(calculations.saldo)}
-                  </Text>
-                </View>
-              </View>
-            )}
+            {/* Loan Amount Input dengan Format Ribuan dan fieldType numeric */}
+            <FormInput
+              label={NASABAH_MESSAGES.FORM.LOAN_AMOUNT}
+              value={formData.pinjaman}
+              onChangeText={(value) =>
+                handleRibuanInputChange(value, (formattedValue) =>
+                  handleInputChange("pinjaman", formattedValue)
+                )
+              }
+              placeholder={NASABAH_MESSAGES.PLACEHOLDERS.LOAN}
+              required
+              editable={!isLoading}
+              style={nasabahStyles.currencyInput}
+              fieldType="numeric"
+            />
           </View>
 
-          {/* Save Button */}
-          <TouchableOpacity
-            style={[
-              nasabahStyles.saveButton,
-              (!isFormValid() || loading || imageLoading) &&
-                nasabahStyles.saveButtonDisabled,
-            ]}
-            onPress={handleFormSubmit}
-            disabled={!isFormValid() || loading || imageLoading}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <View style={nasabahStyles.buttonLoadingContainer}>
-                <ActivityIndicator color="#fff" size="small" />
-                <Text style={nasabahStyles.saveButtonText}>Menyimpan...</Text>
-              </View>
-            ) : (
-              <Text style={nasabahStyles.saveButtonText}>
-                {NASABAH_MESSAGES.BUTTONS.SAVE_NASABAH}
+          {/* Error Display */}
+          {error && (
+            <View style={nasabahStyles.validationContainer}>
+              <Text style={[nasabahStyles.validationText, { color: "red" }]}>
+                ❌ {error}
               </Text>
-            )}
-          </TouchableOpacity>
+            </View>
+          )}
 
           {/* Form validation info */}
           {!isFormValid() && (
@@ -307,6 +176,14 @@ export default function CreateDropBaruHarianScreen() {
               </Text>
             </View>
           )}
+
+          {/* Save Button */}
+          <SaveButton
+            onPress={handleFormSubmit}
+            disabled={!isFormValid() || isLoading || imageLoading}
+            loading={isSubmitting}
+            text={NASABAH_MESSAGES.BUTTONS.SAVE_NASABAH}
+          />
         </ScrollView>
       </View>
     </KeyboardAvoidingView>

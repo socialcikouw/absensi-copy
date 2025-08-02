@@ -1,4 +1,4 @@
-import { DropBaruHarianCalculations } from "../types/dropbaruharian";
+import { DropBaruHarianCalculations } from "../types";
 
 /**
  * Calculate drop baru harian values based on loan amount

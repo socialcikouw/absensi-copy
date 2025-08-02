@@ -2,7 +2,7 @@ import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { DashboardDataItem } from "../../hooks/dashboard/useDashboardData";
 import { dashboardStyles } from "../../styles/dashboardStyles";
-import { formatCurrency } from "../../utils/dropBaruHarianCalculations";
+import { formatCurrency, formatDate } from "../../utils";
 import { ImageWithFallback } from "../shared/ImageWithFallback";
 
 interface DashboardCardProps {
@@ -20,15 +20,6 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
 }) => {
   const data = item.data;
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "Tidak diketahui";
-    return new Date(dateString).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
   return (
     <TouchableOpacity
       style={dashboardStyles.dashboardCard}
@@ -44,7 +35,7 @@ export const DashboardCard: React.FC<DashboardCardProps> = ({
               style={dashboardStyles.cardImage}
             />
           ) : (
-            <Text style={dashboardStyles.cardImagePlaceholder}>Foto</Text>
+            <Text style={dashboardStyles.cardImagePlaceholder}>koplin</Text>
           )}
         </View>
 

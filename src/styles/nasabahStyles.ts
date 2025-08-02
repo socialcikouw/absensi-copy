@@ -263,4 +263,10 @@ export const nasabahStyles = StyleSheet.create({
     color: "#856404",
     textAlign: "center",
   },
+  validationInfoText: {
+    fontSize: 12,
+    color: "#6c757d",
+    marginTop: 5,
+    fontStyle: "italic",
+  },
 });

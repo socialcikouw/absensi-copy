@@ -1,42 +1,50 @@
+import { DropBaruHarianFormData, ValidationResult } from "../types";
+import { parseRibuan } from "./formatRibuan";
 import {
-  DropBaruHarianFormData,
-  ValidationResult,
-} from "../types/dropbaruharian";
-import { parseCurrency } from "./dropBaruHarianCalculations";
+  validateMinValue,
+  validatePositive,
+  validateRequired,
+  validateRequiredWithMinLength,
+} from "./validation";
 
 export const validateDropBaruHarianForm = (
   formData: DropBaruHarianFormData
 ): ValidationResult => {
   // Check nama
-  if (!formData.nama.trim()) {
-    return { isValid: false, message: "Nama harus diisi" };
-  }
-
-  if (formData.nama.trim().length < 3) {
-    return { isValid: false, message: "Nama minimal 3 karakter" };
+  const namaValidation = validateRequiredWithMinLength(
+    formData.nama,
+    3,
+    "Nama"
+  );
+  if (!namaValidation.isValid) {
+    return namaValidation;
   }
 
   // Check alamat
-  if (!formData.alamat.trim()) {
-    return { isValid: false, message: "Alamat harus diisi" };
-  }
-
-  if (formData.alamat.trim().length < 3) {
-    return { isValid: false, message: "Alamat minimal 3 karakter" };
+  const alamatValidation = validateRequiredWithMinLength(
+    formData.alamat,
+    3,
+    "Alamat"
+  );
+  if (!alamatValidation.isValid) {
+    return alamatValidation;
   }
 
   // Check pinjaman
-  if (!formData.pinjaman.trim()) {
-    return { isValid: false, message: "Pinjaman harus diisi" };
+  const pinjamanRequired = validateRequired(formData.pinjaman, "Pinjaman");
+  if (!pinjamanRequired.isValid) {
+    return pinjamanRequired;
   }
 
-  const pinjamanNumber = parseCurrency(formData.pinjaman);
-  if (pinjamanNumber <= 0) {
-    return { isValid: false, message: "Pinjaman harus lebih besar dari 0" };
+  const pinjamanNumber = parseRibuan(formData.pinjaman);
+  const pinjamanPositive = validatePositive(pinjamanNumber, "Pinjaman");
+  if (!pinjamanPositive.isValid) {
+    return pinjamanPositive;
   }
 
-  if (pinjamanNumber < 100000) {
-    return { isValid: false, message: "Pinjaman minimal Rp 100.000" };
+  const pinjamanMinValue = validateMinValue(pinjamanNumber, 100000, "Pinjaman");
+  if (!pinjamanMinValue.isValid) {
+    return pinjamanMinValue;
   }
 
   return { isValid: true };
